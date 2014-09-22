@@ -1,4 +1,5 @@
 var http = require('https');
+var sendNotifications = require('./aws-sns-notify.js');
 
 var AvailabilityApi = {};
 
@@ -27,10 +28,13 @@ AvailabilityApi.GetiPhoneUKAvailability = function(then, error)
 };
 
 AvailabilityApi.FriendlyNameForModel = function(model) {
-	if (AvailabilityApi.ModelMap.hasOwnProperty(model))
-	{
-		return AvailabilityApi.ModelMap[model];
+
+	for (modelLookup in AvailabilityApi.ModelMap) {
+		if (model.substring(0,4)===modelLookup.substring(0,4)) {
+			return AvailabilityApi.ModelMap[modelLookup];
+		}
 	}
+
 	return model;
 };
 
@@ -47,8 +51,12 @@ var PrintAvailabilityUpdatedDate = function(availability)
 	console.log('iPhone Stock Availability was last updated: ' + new Date(availability.updated).toString());
 };
 
+var LastMessageSent = '';
+
 var FindStoresWithStock = function(storesWithAvailability)
 {
+	var message = '';
+
 	var storesWithStock = [];
 	storesWithAvailability.forEach(function (store) {
 		for (model in store.Availability) {
@@ -60,16 +68,26 @@ var FindStoresWithStock = function(storesWithAvailability)
 			}
 		}
 	});
-	console.log('found ' + storesWithStock.length + ' stores with stock.');
+
+	subject = 'Found ' + storesWithStock.length + ' stores with stock';
+	message += subject + '.\n';
+	
 	storesWithStock.forEach(function (store) {
-		console.log('---------');
-		console.log(AvailabilityApi.FriendlyNameForStore(store.StoreId));
+		message += '---------\n';
+		message += AvailabilityApi.FriendlyNameForStore(store.StoreId) + '\n';
 		store.Availability.forEach(function (stockCheck) {
 			if (stockCheck.Available===true) {
-				console.log(AvailabilityApi.FriendlyNameForModel(stockCheck.Model));
+				message += ' -' + AvailabilityApi.FriendlyNameForModel(stockCheck.Model) + '\n';
 			}
 		});
 	});
+	
+	console.log(message);
+	if (LastMessageSent!==message) {
+		LastMessageSent=message;
+		sendNotifications.notifyStockToAllSubscribers(subject, message);
+	}
+
 	return storesWithStock;
 };
 
@@ -94,10 +112,11 @@ var GetStoresWithAvailabilityStatus = function(availability)
 var FindStoresWithStockContinuously = function()
 {
 	AvailabilityApi.GetiPhoneUKAvailability(function (availability) {
+		console.log('---------------------------------------------------------------')
 		PrintAvailabilityUpdatedDate(availability);
 		var storesWithAvailabilityStatus = GetStoresWithAvailabilityStatus(availability);
 		FindStoresWithStock(storesWithAvailabilityStatus);
-		console.log('---------------------------------------------------------------')
+
 		setTimeout(FindStoresWithStockContinuously, 20000);
 	});
 
