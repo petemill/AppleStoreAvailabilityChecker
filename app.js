@@ -55,33 +55,39 @@ var LastMessageSent = '';
 
 var FindStoresWithStock = function(storesWithAvailability)
 {
+	var subject = '';
 	var message = '';
 
-	var storesWithStock = [];
-	storesWithAvailability.forEach(function (store) {
-		for (model in store.Availability) {
-			//console.log(typeof(store.Availability[model].Available));
-			if (store.Availability[model].Available===true) {
-				storesWithStock.push(store);
-
-				break;
-			}
-		}
-	});
-
-	subject = 'Found ' + storesWithStock.length + ' stores with stock';
-	message += subject + '.\n';
+	if (storesWithAvailability.length===0) {
+		subject = "The Apple stock availability checker is down.";
+		message += "There are no stores or stock status being reported. This could mean the system is about to be updated.";
+	}
+	else {
+		var storesWithStock = [];
+		storesWithAvailability.forEach(function (store) {
+			for (model in store.Availability) {
+				if (store.Availability[model].Available===true) {
+					storesWithStock.push(store);
 	
-	storesWithStock.forEach(function (store) {
-		message += '---------\n';
-		message += AvailabilityApi.FriendlyNameForStore(store.StoreId) + '\n';
-		store.Availability.forEach(function (stockCheck) {
-			if (stockCheck.Available===true) {
-				message += ' -' + AvailabilityApi.FriendlyNameForModel(stockCheck.Model) + '\n';
+					break;
+				}
 			}
 		});
-	});
 	
+		subject = 'Found ' + storesWithStock.length + ' stores with stock';
+		message += subject + '.\n';
+		
+		storesWithStock.forEach(function (store) {
+			message += '---------\n';
+			message += AvailabilityApi.FriendlyNameForStore(store.StoreId) + '\n';
+			store.Availability.forEach(function (stockCheck) {
+				if (stockCheck.Available===true) {
+					message += ' -' + AvailabilityApi.FriendlyNameForModel(stockCheck.Model) + '\n';
+				}
+			});
+		});
+	}
+	console.log(subject);
 	console.log(message);
 	if (LastMessageSent!==message) {
 		LastMessageSent=message;
