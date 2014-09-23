@@ -46,57 +46,6 @@ AvailabilityApi.FriendlyNameForStore = function(storeId) {
 	return storeId;
 };
 
-var PrintAvailabilityUpdatedDate = function(availability)
-{
-	console.log('iPhone Stock Availability was last updated: ' + new Date(availability.updated).toString());
-};
-
-var LastMessageSent = '';
-
-var FindStoresWithStock = function(storesWithAvailability)
-{
-	var subject = '';
-	var message = '';
-
-	if (storesWithAvailability.length===0) {
-		subject = "The Apple stock availability checker is down.";
-		message += "There are no stores or stock status being reported. This could mean the system is about to be updated.";
-	}
-	else {
-		var storesWithStock = [];
-		storesWithAvailability.forEach(function (store) {
-			for (model in store.Availability) {
-				if (store.Availability[model].Available===true) {
-					storesWithStock.push(store);
-	
-					break;
-				}
-			}
-		});
-	
-		subject = 'Found ' + storesWithStock.length + ' stores with stock';
-		message += subject + '.\n';
-		
-		storesWithStock.forEach(function (store) {
-			message += '---------\n';
-			message += AvailabilityApi.FriendlyNameForStore(store.StoreId) + '\n';
-			store.Availability.forEach(function (stockCheck) {
-				if (stockCheck.Available===true) {
-					message += ' -' + AvailabilityApi.FriendlyNameForModel(stockCheck.Model) + '\n';
-				}
-			});
-		});
-	}
-	console.log(subject);
-	console.log(message);
-	if (LastMessageSent!==message) {
-		LastMessageSent=message;
-		sendNotifications.notifyStockToAllSubscribers(subject, message);
-	}
-
-	return storesWithStock;
-};
-
 var GetStoresWithAvailabilityStatus = function(availability)
 {
 	var stores = [];
@@ -115,13 +64,64 @@ var GetStoresWithAvailabilityStatus = function(availability)
 	return stores;
 };
 
+var LastMessageSent = '';
+
 var FindStoresWithStockContinuously = function()
 {
 	AvailabilityApi.GetiPhoneUKAvailability(function (availability) {
-		console.log('---------------------------------------------------------------')
-		PrintAvailabilityUpdatedDate(availability);
+		console.log('---------------------------------------------------------------');
+		
+		var dateMessage = "unknown time";
+		if (availability.updated)
+		{
+			var dateUpdated = new Date(availability.updated);
+			dateMessage = dateUpdated.getHours().toString() + ':' dateUpdated.getMinutes().toString() + ':' + dateUpdated.getSeconds().toString();
+		}
+		console.log('iPhone Stock Availability was last updated: ' + dateMessage);
+		
 		var storesWithAvailabilityStatus = GetStoresWithAvailabilityStatus(availability);
-		FindStoresWithStock(storesWithAvailabilityStatus);
+		
+		var subject = '';
+		var message = '';
+	
+		if (storesWithAvailabilityStatus.length===0) {
+			subject = "The Apple stock availability checker is down.";
+			message += "There are no stores or stock status being reported. This could mean the system is about to be updated.";
+		}
+		else {
+			var storesWithStock = [];
+			storesWithAvailabilityStatus.forEach(function (store) {
+				for (model in store.Availability) {
+					if (store.Availability[model].Available===true) {
+						storesWithStock.push(store);
+		
+						break;
+					}
+				}
+			});
+		
+			subject = 'Found ' + storesWithStock.length + ' stores with stock (' + dateMessage + ')';
+			message += subject + '.\n';
+			
+			storesWithStock.forEach(function (store) {
+				message += '---------\n';
+				message += AvailabilityApi.FriendlyNameForStore(store.StoreId) + '\n';
+				store.Availability.forEach(function (stockCheck) {
+					if (stockCheck.Available===true) {
+						message += ' -' + AvailabilityApi.FriendlyNameForModel(stockCheck.Model) + '\n';
+					}
+				});
+			});
+		}
+		console.log(subject);
+		console.log(message);
+		
+		if (LastMessageSent!==message) {
+			LastMessageSent=message;
+			sendNotifications.notifyStockToAllSubscribers(subject, message);
+		}
+		
+		//FindStoresWithStock(storesWithAvailabilityStatus);
 
 		setTimeout(FindStoresWithStockContinuously, 20000);
 	});
