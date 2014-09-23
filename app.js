@@ -101,7 +101,6 @@ var FindStoresWithStockContinuously = function()
 			});
 		
 			subject = 'Found ' + storesWithStock.length + ' stores with stock (' + dateMessage + ')';
-			message += subject + '.\n';
 			
 			storesWithStock.forEach(function (store) {
 				message += '---------\n';
