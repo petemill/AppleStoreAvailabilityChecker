@@ -75,7 +75,7 @@ var FindStoresWithStockContinuously = function()
 		if (availability.updated)
 		{
 			var dateUpdated = new Date(availability.updated);
-			dateMessage = dateUpdated.getHours().toString() + ':' dateUpdated.getMinutes().toString() + ':' + dateUpdated.getSeconds().toString();
+			dateMessage = dateUpdated.getHours().toString() + ':' + dateUpdated.getMinutes().toString() + ':' + dateUpdated.getSeconds().toString();
 		}
 		console.log('iPhone Stock Availability was last updated: ' + dateMessage);
 		
