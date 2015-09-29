@@ -150,5 +150,5 @@ var FindStoresWithStockContinuously = function()
 
 
 };
-
+sendNotifications.notifyStockToAllSubscribers('Startup', 'Apple Stock Checker Started up!');
 FindStoresWithStockContinuously();
