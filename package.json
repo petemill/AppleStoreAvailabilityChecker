@@ -8,6 +8,7 @@
   },
   "author": "",
   "dependencies": {
-    "aws-sdk": "^2.0.17"
+    "aws-sdk": "^2.0.17",
+    "slack-notify": "^0.1.4"
   }
 }
