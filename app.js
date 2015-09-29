@@ -1,15 +1,34 @@
 var http = require('https');
-var sendNotifications = require('./aws-sns-notify.js');
+var sendNotifications = require('./slack-notify.js');
 
 var AvailabilityApi = {};
+if (!Array.prototype.contains) {
+  Array.prototype.contains = function(searchElement /*, fromIndex*/ ) {
+    return this.indexOf(searchElement) !== -1;
+	};
+}
+var UserPrefs = {};
+UserPrefs.ModelsInterestedIn = [
+	"MKUW2LL/A",
+	"MKV22LL/A"
+];
+UserPrefs.StoresInterestedIn = [
+	"R317",
+	"R154",
+	"R199",
+	"R189",
+	"R171"
+];
+
+
 
 AvailabilityApi.StoreMap = require('./apple-store-map.json');
 
 AvailabilityApi.ModelMap = require('./model-map.json');
 
-AvailabilityApi.GetiPhoneUKAvailability = function(then, error)
+AvailabilityApi.GetiPhoneAvailability = function(then, error)
 {
-	var url = 'https://reserve.cdn-apple.com/GB/en_GB/reserve/iPhone/availability.json';
+	var url = 'https://reserve.cdn-apple.com/US/en_US/reserve/iPhone/availability.json';
 	http.get(url, function(res) {
 	    var body = '';
 
@@ -56,7 +75,8 @@ var GetStoresWithAvailabilityStatus = function(availability)
 			var availabilityArray = [];
 			for (avail in availability[prop])
 			{
-				availabilityArray.push({Model: avail, Available: availability[prop][avail]});
+				if (avail !== 'timeSlot')
+					availabilityArray.push({Model: avail, Available: availability[prop][avail]});
 			}
 			stores.push({ StoreId: prop, Availability: availabilityArray});
 		}
@@ -68,9 +88,9 @@ var LastMessageSent = '';
 
 var FindStoresWithStockContinuously = function()
 {
-	AvailabilityApi.GetiPhoneUKAvailability(function (availability) {
+	AvailabilityApi.GetiPhoneAvailability(function (availability) {
 		console.log('---------------------------------------------------------------');
-		
+
 		var dateMessage = "unknown time";
 		if (availability.updated)
 		{
@@ -78,12 +98,12 @@ var FindStoresWithStockContinuously = function()
 			dateMessage = dateUpdated.getHours().toString() + ':' + dateUpdated.getMinutes().toString() + ':' + dateUpdated.getSeconds().toString();
 		}
 		console.log('iPhone Stock Availability was last updated: ' + dateMessage);
-		
+
 		var storesWithAvailabilityStatus = GetStoresWithAvailabilityStatus(availability);
-		
+
 		var subject = '';
 		var message = '';
-	
+
 		if (storesWithAvailabilityStatus.length===0) {
 			subject = "The Apple stock availability checker is down.";
 			message += "There are no stores or stock status being reported. This could mean the system is about to be updated.";
@@ -91,22 +111,25 @@ var FindStoresWithStockContinuously = function()
 		else {
 			var storesWithStock = [];
 			storesWithAvailabilityStatus.forEach(function (store) {
-				for (model in store.Availability) {
-					if (store.Availability[model].Available===true) {
-						storesWithStock.push(store);
-		
-						break;
+
+				if (UserPrefs.StoresInterestedIn.length === 0 || UserPrefs.StoresInterestedIn.contains(store.StoreId)) {
+					for (model in store.Availability) {
+						var thisModelAvail = store.Availability[model];
+						if (UserPrefs.ModelsInterestedIn.contains(thisModelAvail.Model) && thisModelAvail.Available !== "NONE") {
+							storesWithStock.push(store);
+							break;
+						}
 					}
 				}
 			});
-		
+
 			subject = 'Found ' + storesWithStock.length + ' stores with stock (' + dateMessage + ')';
-			
+
 			storesWithStock.forEach(function (store) {
 				message += '---------\n';
 				message += AvailabilityApi.FriendlyNameForStore(store.StoreId) + '\n';
 				store.Availability.forEach(function (stockCheck) {
-					if (stockCheck.Available===true) {
+					if (UserPrefs.ModelsInterestedIn.contains(stockCheck.Model) && stockCheck.Available !== "NONE") {
 						message += ' -' + AvailabilityApi.FriendlyNameForModel(stockCheck.Model) + '\n';
 					}
 				});
@@ -114,18 +137,18 @@ var FindStoresWithStockContinuously = function()
 		}
 		console.log(subject);
 		console.log(message);
-		
+
 		if (LastMessageSent!==message) {
 			LastMessageSent=message;
 			sendNotifications.notifyStockToAllSubscribers(subject, message);
 		}
-		
+
 		//FindStoresWithStock(storesWithAvailabilityStatus);
 
 		setTimeout(FindStoresWithStockContinuously, 20000);
 	});
 
-	
+
 };
 
 FindStoresWithStockContinuously();
