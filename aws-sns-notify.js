@@ -1,8 +1,9 @@
 var AWS = require('aws-sdk');
-AWS.config.loadFromPath('./aws-config.json');
+//AWS.config.loadFromPath('./aws-config.json');
 
 
 exports.notifyStockToAllSubscribers = function(subject, message) {
+  return true;
   var sns = new AWS.SNS();
 
   var params = {
@@ -16,4 +17,3 @@ exports.notifyStockToAllSubscribers = function(subject, message) {
   });
 
 };
-
